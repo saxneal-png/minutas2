@@ -1,0 +1,54 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const MODEL_NAME = 'gemini-flash-latest';
+
+export interface MinutaFila {
+  tema: string;
+  compromiso: string;
+  plazo: string;
+}
+
+export interface MinutaData {
+  fecha: string;
+  hora: string;
+  lugar: string;
+  asunto: string;
+  detalles: string;
+  asistentes: string;
+  filas: MinutaFila[];
+}
+
+export const analyzeDocumentWithGemini = async (apiKey: string, fileBase64: string, mimeType: string): Promise<MinutaData | null> => {
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
+    });
+
+    const prompt = `Eres un administrativo experto de la Dirección de Obras Hidráulicas (DOH). Analiza este documento sobre el proyecto "Embalse Zapallar".
+  
+    REGLAS ESTRICTAS DE EXTRACCIÓN:
+    1. Formaliza el texto con lenguaje técnico (ingeniería/DOH).
+    2. "asunto": DEBE ser ÚNICAMENTE un título corto y representativo.
+    3. "detalles": CRÍTICO: Aquí debe ir TODO lo que habla el contexto general de la reunión. NO DEBES RESUMIR, debes incorporar todo a modo de texto, parafraseando si es necesario para lograr mayor formalidad y extensión. El texto debe ser detallado y abundante. El texto no debe ser de menor extensión que las notas de origen.
+    4. "filas" (Tabla): Desagrega obligatoriamente todos los temas específicos, sus compromisos y plazos.
+    5. "asistentes": Lista los nombres encontrados separados por comas.
+    6. CRÍTICO: Si no encuentras la fecha, la hora, el lugar o cualquier otro dato en el documento, NO ESCRIBAS "undefined". Escribe siempre "No especificado".
+  
+    Responde SOLO con este JSON exacto: 
+    {
+      "fecha": "dd/mm/aaaa", "hora": "hh:mm", "lugar": "...", "asunto": "...", "detalles": "...", "asistentes": "...",
+      "filas": [{"tema": "...", "compromiso": "...", "plazo": "..."}]
+    }`;
+
+    const part = { inlineData: { data: fileBase64, mimeType: mimeType.includes('officedocument') ? 'text/plain' : mimeType } };
+    const result = await model.generateContent([prompt, part]);
+    const response = await result.response;
+    const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text) as MinutaData;
+  } catch (error) {
+    console.error('❌ Error en Gemini:', error);
+    throw new Error('Fallo al procesar con IA. Verifica tu API Key.');
+  }
+};
