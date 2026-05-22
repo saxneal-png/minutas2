@@ -35,6 +35,7 @@ export const analyzeDocumentWithGemini = async (apiKey: string, fileBase64: stri
     4. "filas" (Tabla): Desagrega obligatoriamente todos los temas específicos, sus compromisos y plazos.
     5. "asistentes": Lista los nombres encontrados separados por comas.
     6. CRÍTICO: Si no encuentras la fecha, la hora, el lugar o cualquier otro dato en el documento, NO ESCRIBAS "undefined". Escribe siempre "No especificado".
+    7. CONTEXTO ACTUAL Y OBJETIVIDAD: Considera que en estos momentos el proyecto está en el levantamiento de información de la red de canales secundarios para las comunas de El Carmen y San Ignacio. Debes ser muy objetivo y neutral en el análisis de los apuntes analizados.
   
     Responde SOLO con este JSON exacto: 
     {
