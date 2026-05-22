@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import PizZip from 'pizzip';
+import { Buffer } from 'buffer';
 
 const MODEL_NAME = 'gemini-flash-latest';
 
@@ -17,6 +19,21 @@ export interface MinutaData {
   asistentes: string;
   filas: MinutaFila[];
 }
+
+const extractTextFromDocx = (base64: string): string => {
+  try {
+    const zip = new PizZip(Buffer.from(base64, 'base64'));
+    const docXml = zip.file('word/document.xml')?.asText();
+    if (!docXml) return '';
+    // Reemplaza los finales de párrafo por saltos de línea y elimina todos los demás tags XML
+    let text = docXml.replace(/<w:p[^>]*>/g, '\n');
+    text = text.replace(/<[^>]+>/g, '');
+    return text.trim();
+  } catch (error) {
+    console.error('Error extrayendo texto de DOCX:', error);
+    return '';
+  }
+};
 
 export const analyzeDocumentWithGemini = async (apiKey: string, fileBase64: string, mimeType: string): Promise<MinutaData | null> => {
   try {
@@ -43,13 +60,24 @@ export const analyzeDocumentWithGemini = async (apiKey: string, fileBase64: stri
       "filas": [{"tema": "...", "compromiso": "...", "plazo": "..."}]
     }`;
 
-    const part = { inlineData: { data: fileBase64, mimeType: mimeType.includes('officedocument') ? 'text/plain' : mimeType } };
-    const result = await model.generateContent([prompt, part]);
+    let result;
+    const isDocx = mimeType.includes('officedocument') || mimeType.includes('word');
+    
+    if (isDocx) {
+      const docxText = extractTextFromDocx(fileBase64);
+      if (!docxText) throw new Error('No se pudo extraer texto del archivo DOCX.');
+      const finalPrompt = prompt + '\n\nTEXTO DEL DOCUMENTO A ANALIZAR:\n' + docxText;
+      result = await model.generateContent([finalPrompt]);
+    } else {
+      const part = { inlineData: { data: fileBase64, mimeType } };
+      result = await model.generateContent([prompt, part]);
+    }
+
     const response = await result.response;
     const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(text) as MinutaData;
   } catch (error) {
     console.error('❌ Error en Gemini:', error);
-    throw new Error('Fallo al procesar con IA. Verifica tu API Key.');
+    throw new Error('Fallo al procesar con IA. Verifica tu API Key o el formato del documento.');
   }
 };

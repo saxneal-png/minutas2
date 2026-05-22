@@ -16,9 +16,13 @@ export default function Settings() {
     AsyncStorage.getItem('template_uri').then(val => val && setTemplateName('Plantilla configurada'));
   }, []);
 
-  const saveKey = (key: string) => {
-    setApiKey(key);
-    AsyncStorage.setItem('gemini_api_key', key);
+  const handleSaveKey = () => {
+    if (!apiKey) {
+      Alert.alert('Error', 'Debes ingresar una clave API.');
+      return;
+    }
+    AsyncStorage.setItem('gemini_api_key', apiKey);
+    Alert.alert('Éxito', 'API Key guardada correctamente.');
   };
 
   const selectTemplate = async () => {
@@ -47,15 +51,20 @@ export default function Settings() {
           <TextInput 
             style={styles.input} 
             value={apiKey} 
-            onChangeText={saveKey} 
+            onChangeText={setApiKey} 
             secureTextEntry 
             placeholder="AIzaSyB..."
             placeholderTextColor={COLORS.textLight}
           />
         </View>
+        <Button 
+          title="Guardar API Key" 
+          onPress={handleSaveKey} 
+          style={{marginTop: 16}}
+        />
       </Card>
       
-      <Card>
+      <Card style={{marginTop: 24}}>
         <View style={styles.cardHeader}>
           <Ionicons name="document-text-outline" size={24} color={COLORS.secondary} />
           <Text style={styles.cardTitle}>Plantilla Word</Text>
