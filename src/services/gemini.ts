@@ -26,7 +26,7 @@ export const analyzeDocumentWithGemini = async (apiKey: string, fileBase64: stri
       generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
     });
 
-    const prompt = `Eres un administrativo experto de la Dirección de Obras Hidráulicas (DOH). Analiza este documento sobre el proyecto "Embalse Zapallar".
+    const prompt = `Eres el coordinador de una oficina de un servicio de apoyo experto y coordinación de actividades territoriales para el proceso constructivo del embalse zapallar canal matriz y obras externas.
   
     REGLAS ESTRICTAS DE EXTRACCIÓN:
     1. Formaliza el texto con lenguaje técnico (ingeniería/DOH).
