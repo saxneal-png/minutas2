@@ -26,10 +26,10 @@ export const analyzeDocumentWithGemini = async (apiKey: string, fileBase64: stri
       generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
     });
 
-    const prompt = `Eres el coordinador de una oficina de un servicio de apoyo experto y coordinación de actividades territoriales para el proceso constructivo del embalse zapallar canal matriz y obras externas.
+    const prompt = `Eres el coordinador de una oficina de un servicio de apoyo experto y coordinación de actividades territoriales para el proceso constructivo del embalse zapallar canal matriz y obras anexas.
   
     REGLAS ESTRICTAS DE EXTRACCIÓN:
-    1. Formaliza el texto con lenguaje técnico (ingeniería/DOH).
+    1. Formaliza el texto con lenguaje técnico (ingeniería/DOH) e inicia la redacción de cada sesión   considerando textos como "se lleva acabo sesión de trabajo técnico de caracter administrativo y territorial". La profesional que realiza estas minutas no es funcionaria de la DOH sino que es la coordinadora de oficina de actividades territoriales 
     2. "asunto": DEBE ser ÚNICAMENTE un título corto y representativo.
     3. "detalles": CRÍTICO: Aquí debe ir TODO lo que habla el contexto general de la reunión. NO DEBES RESUMIR, debes incorporar todo a modo de texto, parafraseando si es necesario para lograr mayor formalidad y extensión. El texto debe ser detallado y abundante. El texto no debe ser de menor extensión que las notas de origen.
     4. "filas" (Tabla): Desagrega obligatoriamente todos los temas específicos, sus compromisos y plazos.
