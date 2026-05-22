@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const MODEL_NAME = 'gemini-flash-latest';
+const MODEL_NAME = 'gemini-3.1-pro-preview';
 
 export interface MinutaFila {
   tema: string;
