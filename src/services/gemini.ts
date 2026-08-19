@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import PizZip from 'pizzip';
 import { Buffer } from 'buffer';
 
-const MODEL_NAME = 'gemini-flash-latest';
+const MODEL_NAME = 'gemini-3.7-flash';
 
 export interface MinutaFila {
   tema: string;
