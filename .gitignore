@@ -5,3 +5,9 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 .env
+__pycache__/
+*.pyc
+desktop_app/build/
+desktop_app/dist/
+desktop_app/__pycache__/
+
