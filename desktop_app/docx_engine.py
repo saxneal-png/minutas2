@@ -244,11 +244,17 @@ class DocxEngine:
                         if f_idx == 0:
                             for cell in target_row.cells:
                                 for p in cell.paragraphs:
+                                    p.paragraph_format.space_before = Pt(2)
+                                    p.paragraph_format.space_after = Pt(2)
+                                    p.paragraph_format.line_spacing = 1.15
                                     p.text = p.text.replace("{TEMA}", tema_text).replace("{{TEMA}}", tema_text)
                                     p.text = p.text.replace("{COMPROMISO}", comp_text).replace("{{COMPROMISO}}", comp_text)
                                     p.text = p.text.replace("{RESPONSABLE}", resp_text).replace("{{RESPONSABLE}}", resp_text)
                                     p.text = p.text.replace("{PLAZO}", plazo_text).replace("{{PLAZO}}", plazo_text)
                                     p.text = p.text.replace("{FECHA}", plazo_text).replace("{{FECHA}}", plazo_text)
+                                    for r in p.runs:
+                                        r.font.name = "Arial"
+                                        r.font.size = Pt(9.5)
                         else:
                             # Copy cell contents and styling from template row
                             for c_idx, cell in enumerate(target_row.cells):
@@ -265,13 +271,23 @@ class DocxEngine:
                                         val = plazo_text
                                     else:
                                         val = tema_text
-                                    cell.paragraphs[0].text = val
+                                    
+                                    p_c = cell.paragraphs[0]
+                                    p_c.text = ""
+                                    p_c.paragraph_format.space_before = Pt(2)
+                                    p_c.paragraph_format.space_after = Pt(2)
+                                    p_c.paragraph_format.line_spacing = 1.15
+                                    run = p_c.add_run(val)
+                                    run.font.name = "Arial"
+                                    run.font.size = Pt(9.5)
+                                    run.font.color.rgb = RGBColor(15, 23, 42)
                 else:
                     for cell in tpl_row.cells:
                         for p in cell.paragraphs:
                             p.text = p.text.replace("{TEMA}", "Sin compromisos").replace("{{TEMA}}", "Sin compromisos")
                             p.text = p.text.replace("{COMPROMISO}", "-").replace("{{COMPROMISO}}", "-")
                             p.text = p.text.replace("{PLAZO}", "-").replace("{{PLAZO}}", "-")
+                            p.text = p.text.replace("{FECHA}", "-").replace("{{FECHA}}", "-")
 
             # Also do standard variable replacement for remaining cells in table
             for row in table.rows:

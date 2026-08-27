@@ -1039,23 +1039,34 @@ class MinutasApp(ctk.CTk):
         guide_card = ctk.CTkFrame(self.tab_templates, fg_color=C_CARD, corner_radius=14)
         guide_card.pack(fill="both", expand=True)
 
-        ctk.CTkLabel(
-            guide_card, 
-            text="Etiquetas Soportadas en Plantillas Word:", 
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-            text_color=C_TEXT_WHITE
-        ).pack(anchor="w", padx=16, pady=(16, 8))
+        guide_text = """DISEÑO Y ETIQUETAS COMPATIBLES EN TU PLANTILLA WORD (.docx)
 
-        guide_text = """Diseña tu plantilla Word oficial incluyendo cualquiera de estas etiquetas de reemplazo automático:
+1. ETIQUETAS DE ENCABEZADO Y DATOS GENERALES:
+   (Puedes usarlas con doble llave {{...}} o con llave simple {...})
+   • {{FECHA}}             : Fecha de la sesión (ej: 09 de abril de 2026).
+   • {{HORA}}              : Hora de la reunión (ej: 14:20).
+   • {{LUGAR}}             : Lugar, localidad o enlace virtual.
+   • {{ASUNTO}}            : Asunto o título formal de la minuta.
+   • {{COORDINADOR}}       : Nombre o cargo de quien coordina/redacta.
+   • {{ASISTENTES}}        : Lista de participantes detectados.
+   • {{DETALLES_REUNION}}  : Desarrollo narrativo y antecedentes completos.
+     (También compatible con {{DETALLES}} o {{ANTECEDENTES}})
 
-• {ASUNTO}           : Título o asunto formal de la reunión.
-• {FECHA}            : Fecha de la sesión.
-• {HORA}             : Hora de inicio o realización.
-• {LUGAR}            : Ubicación física o enlace virtual.
-• {COORDINADOR}      : Nombre o cargo del redactor / coordinador(a).
-• {ASISTENTES}       : Lista de participantes detectados.
-• {DETALLES}         : Resumen completo de antecedentes y desarrollo.
-• {TABLA_COMPROMISOS}: Genera la matriz con N°, Tema, Compromiso, Responsable y Plazo."""
+2. TABLA DE TEMAS Y COMPROMISOS (2 MODALIDADES):
+
+   A) MODALIDAD OFICIAL DOH (3 Columnas en tu propia tabla Word):
+      Crea una tabla en Word con encabezados como 'TEMAS TRATADOS', 'COMPROMISOS', 'FECHA'
+      y en la segunda fila escribe:
+      ┌──────────────┬──────────────────┬─────────────┐
+      │  {{TEMA}}    │  {{COMPROMISO}}  │  {{PLAZO}}  │
+      └──────────────┴──────────────────┴─────────────┘
+      El sistema rellenará automáticamente esa fila y creará las filas adicionales 
+      necesarias con tipografía idéntica en esa misma página.
+
+   B) MODALIDAD AUTOMÁTICA CLÁSICA:
+      Escribe en cualquier párrafo el marcador:
+      • {TABLA_COMPROMISOS}
+      El sistema generará una tabla estilizada de 5 columnas (N°, Tema, Compromiso, Resp, Plazo)."""
 
         txt = ctk.CTkTextbox(guide_card, font=ctk.CTkFont(family="Consolas", size=12), corner_radius=8, fg_color=C_CARD_INNER, text_color=C_TEXT_WHITE)
         txt.insert("1.0", guide_text)

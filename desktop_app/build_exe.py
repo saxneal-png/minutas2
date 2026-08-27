@@ -45,7 +45,16 @@ def build():
         target_dist = os.path.join(os.path.dirname(root_dir), "MinutasAI_Studio.exe")
         
         if os.path.exists(exe_path):
-            shutil.copy2(exe_path, target_dist)
+            try:
+                shutil.copy2(exe_path, target_dist)
+            except PermissionError:
+                print("[!] Cerrando proceso anterior de MinutasAI_Studio para actualizar...")
+                if sys.platform == "win32":
+                    subprocess.run(["taskkill", "/f", "/im", "MinutasAI_Studio.exe"], capture_output=True)
+                import time
+                time.sleep(1)
+                shutil.copy2(exe_path, target_dist)
+
             print("\n==================================================")
             print("[OK] Compilación v2.1 completada con ÉXITO!")
             print(f"[*] Archivo ejecutable (.exe) actualizado en:\n{target_dist}")
