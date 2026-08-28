@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 import subprocess
 
 if sys.stdout.encoding != 'utf-8':
@@ -9,60 +8,76 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
-def build():
-    print("==================================================")
-    print("[*] Compilando Minutas AI Studio v2.1 (.exe)")
-    print("==================================================")
+def find_iscc():
+    candidates = [
+        os.path.join(os.environ.get('LOCALAPPDATA', ''), r'Programs\Inno Setup 6\ISCC.exe'),
+        r'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+        r'C:\Program Files\Inno Setup 6\ISCC.exe',
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return None
 
+def build():
     root_dir = os.path.dirname(os.path.abspath(__file__))
+    workspace_root = os.path.dirname(root_dir)
     main_py = os.path.join(root_dir, "main.py")
     templates_dir = os.path.join(root_dir, "templates")
+    manifest_path = os.path.join(root_dir, "app.manifest")
+    iss_file = os.path.join(workspace_root, "minutas_setup.iss")
+
+    print("================================================================")
+    print("[1/2] Compilando build portable --onedir con PyInstaller...")
+    print("================================================================")
 
     from docx_engine import DocxEngine
-    engine = DocxEngine(templates_dir=templates_dir)
-    engine.ensure_default_template()
+    DocxEngine(templates_dir=templates_dir).ensure_default_template()
 
     cmd = [
-        sys.executable,
-        "-m", "PyInstaller",
+        sys.executable, "-m", "PyInstaller",
         "--noconsole",
-        "--onefile",
-        "--name", "MinutasAI_Studio",
+        f"--manifest={manifest_path}",
         f"--add-data={templates_dir};templates",
         "--collect-all", "customtkinter",
         "--collect-all", "google.genai",
         "--collect-all", "docx",
         "--collect-all", "pypdf",
         "--collect-all", "requests",
+        "--onedir",
+        "-y",
+        "--name", "MinutasAI_Studio_Portable",
+        "--clean",
         main_py
     ]
+    subprocess.run(cmd, cwd=root_dir, check=True)
 
-    print("Ejecutando PyInstaller...")
-    res = subprocess.run(cmd, cwd=root_dir)
+    portable_src = os.path.join(root_dir, "dist", "MinutasAI_Studio_Portable")
+    if not os.path.exists(portable_src):
+        raise RuntimeError("Build --onedir failed: dist folder not found")
 
-    if res.returncode == 0:
-        exe_path = os.path.join(root_dir, "dist", "MinutasAI_Studio.exe")
-        target_dist = os.path.join(os.path.dirname(root_dir), "MinutasAI_Studio.exe")
-        
-        if os.path.exists(exe_path):
-            try:
-                shutil.copy2(exe_path, target_dist)
-            except PermissionError:
-                print("[!] Cerrando proceso anterior de MinutasAI_Studio para actualizar...")
-                if sys.platform == "win32":
-                    subprocess.run(["taskkill", "/f", "/im", "MinutasAI_Studio.exe"], capture_output=True)
-                import time
-                time.sleep(1)
-                shutil.copy2(exe_path, target_dist)
+    print()
+    print("================================================================")
+    print("[2/2] Creando Instalador Oficial de Windows con Inno Setup...")
+    print("================================================================")
 
-            print("\n==================================================")
-            print("[OK] Compilación v2.1 completada con ÉXITO!")
-            print(f"[*] Archivo ejecutable (.exe) actualizado en:\n{target_dist}")
-            print("==================================================")
-        else:
-            print("Compilación finalizada en dist/")
-    else:
-        print(f"\n[ERROR] Error en la compilación. Código de salida: {res.returncode}")
+    iscc_path = find_iscc()
+    if not iscc_path:
+        raise RuntimeError("No se encontró ISCC.exe (Inno Setup 6).")
+
+    print(f"  Compilador Inno Setup: {iscc_path}")
+    print(f"  Script de configuración: {iss_file}")
+
+    subprocess.run([iscc_path, iss_file], check=True, cwd=workspace_root)
+
+    installer_exe = os.path.join(workspace_root, "Instalador_MinutasAI_Studio.exe")
+    if os.path.exists(installer_exe):
+        size_mb = os.path.getsize(installer_exe) / 1024 / 1024
+        print()
+        print("================================================================")
+        print(f"🎉 ¡Instalador creado con éxito! ({size_mb:.1f} MB)")
+        print(f"📁 Ubicación: {installer_exe}")
+        print("================================================================")
 
 if __name__ == "__main__":
     build()

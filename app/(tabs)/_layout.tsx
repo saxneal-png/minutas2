@@ -6,11 +6,11 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textLight,
+        tabBarActiveTintColor: COLORS.primaryLight,
+        tabBarInactiveTintColor: COLORS.textSecondary,
         tabBarStyle: {
           backgroundColor: COLORS.surface,
-          height: 64,
+          height: 60,
           paddingBottom: 8,
           paddingTop: 8,
           borderTopColor: COLORS.border,
@@ -23,9 +23,10 @@ export default function TabLayout() {
           borderBottomWidth: 1,
           borderBottomColor: COLORS.border,
         },
-        headerTintColor: COLORS.text,
+        headerTintColor: COLORS.white,
         headerTitleStyle: {
           fontWeight: '800',
+          fontSize: 17,
         },
       }}
     >
@@ -33,20 +34,23 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Inicio',
+          headerTitle: 'Minutas AI Studio',
           tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="analyze"
         options={{
-          title: 'Analizar',
-          tabBarIcon: ({ color, size }) => <Ionicons name="document-text-outline" size={size} color={color} />,
+          title: 'Compilador',
+          headerTitle: 'Compilar y Analizar',
+          tabBarIcon: ({ color, size }) => <Ionicons name="layers-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Ajustes',
+          headerTitle: 'Configuración',
           tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" size={size} color={color} />,
         }}
       />

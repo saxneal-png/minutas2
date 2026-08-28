@@ -50,4 +50,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    manifest='C:/Users/DionicioFelipeFlores/Downloads/minutas2/desktop_app/app.manifest',
 )

@@ -1,48 +1,77 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../src/components/Card';
 import { Button } from '../../src/components/Button';
-import { COLORS, GRADIENTS } from '../../src/theme/colors';
+import { COLORS } from '../../src/theme/colors';
 
 export default function Home() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons name="document-text" size={40} color={COLORS.primary} />
+          <Ionicons name="document-text" size={38} color={COLORS.primaryLight} />
         </View>
-        <Text style={styles.title}>Minutas DOH</Text>
-        <Text style={styles.subtitle}>Embalse Zapallar</Text>
+        <Text style={styles.title}>Minutas AI Studio</Text>
+        <Text style={styles.subtitle}>Compilador Inteligente de Apuntes y Actas Oficiales</Text>
       </View>
-      
+
       <Card style={styles.card}>
         <View style={styles.cardHeader}>
-          <Ionicons name="sparkles" size={24} color={COLORS.secondary} />
-          <Text style={styles.cardTitle}>Automatización con IA</Text>
+          <Ionicons name="sparkles" size={22} color={COLORS.secondary} />
+          <Text style={styles.cardTitle}>Automatización de Minutas DOH</Text>
         </View>
         <Text style={styles.cardText}>
-          Genera actas y minutas estructuradas al instante. Sube tu documento y deja que la Inteligencia Artificial extraiga los acuerdos, fechas y participantes.
+          Consolida múltiples archivos (Word, PDF, Fotos, TXT) y notas rápidas en una única minuta
+          formal exhaustiva con lenguaje técnico institucional.
         </Text>
-        
+
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>10x</Text>
-            <Text style={styles.statLabel}>Más Rápido</Text>
+            <Ionicons name="layers-outline" size={24} color={COLORS.primaryLight} />
+            <Text style={styles.statNumber}>Multi-Fuente</Text>
+            <Text style={styles.statLabel}>Combina Word, PDF y Fotos</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>100%</Text>
-            <Text style={styles.statLabel}>Precisión</Text>
+            <Ionicons name="flash-outline" size={24} color={COLORS.secondaryLight} />
+            <Text style={styles.statNumber}>IA Gemini</Text>
+            <Text style={styles.statLabel}>Modelos en tiempo real</Text>
           </View>
         </View>
 
-        <Button 
-          title="Comenzar Análisis" 
-          onPress={() => router.push('/analyze')} 
-          style={{marginTop: 24}} 
+        <Button
+          title="Iniciar Compilación"
+          onPress={() => router.push('/analyze')}
+          style={{ marginTop: 24 }}
         />
+      </Card>
+
+      <Card style={styles.card}>
+        <Text style={styles.cardSectionTitle}>Flujo de Trabajo Simplificado</Text>
+        <View style={styles.stepRow}>
+          <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.stepTitle}>Configura tu API Key</Text>
+            <Text style={styles.stepDesc}>En Ajustes, ingresa tu clave de Gemini para activar los modelos.</Text>
+          </View>
+        </View>
+
+        <View style={styles.stepRow}>
+          <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.stepTitle}>Adjunta tus fuentes</Text>
+            <Text style={styles.stepDesc}>Sube uno o varios archivos y agrega apuntes manuales si lo deseas.</Text>
+          </View>
+        </View>
+
+        <View style={styles.stepRow}>
+          <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.stepTitle}>Exporta a Word (.docx)</Text>
+            <Text style={styles.stepDesc}>Edita en pantalla los acuerdos y descarga tu minuta formateada.</Text>
+          </View>
+        </View>
       </Card>
     </ScrollView>
   );
@@ -50,61 +79,116 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
+  content: { padding: 20, paddingTop: 40, paddingBottom: 40 },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 28,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.white,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: COLORS.primaryDark,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  title: { fontSize: 36, fontWeight: '900', color: COLORS.text, letterSpacing: -0.5 },
-  subtitle: { fontSize: 18, color: COLORS.textLight, marginTop: 4, fontWeight: '500' },
+  title: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: COLORS.white,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 6,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   card: {
-    padding: 24,
+    padding: 20,
+    marginBottom: 16,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.white,
+    marginLeft: 8,
+  },
+  cardText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 22,
+  },
+  cardSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.white,
     marginBottom: 16,
   },
-  cardTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, marginLeft: 8 },
-  cardText: { fontSize: 16, color: COLORS.textLight, lineHeight: 24 },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 24,
-    gap: 16,
+    marginTop: 20,
+    gap: 12,
   },
   statBox: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    borderRadius: 16,
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 15,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: COLORS.white,
+    marginTop: 6,
   },
   statLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 12,
+  },
+  stepNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepNumberText: {
+    color: COLORS.white,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  stepTitle: {
     fontSize: 14,
-    color: COLORS.textLight,
-    marginTop: 4,
-    fontWeight: '500',
-  }
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  stepDesc: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
 });

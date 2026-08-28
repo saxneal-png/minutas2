@@ -10,4 +10,6 @@ __pycache__/
 desktop_app/build/
 desktop_app/dist/
 desktop_app/__pycache__/
-
+MinutasAI_Studio_Portable/
+Minutas_AI_Studio/
+*.zip
