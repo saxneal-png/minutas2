@@ -207,8 +207,8 @@ class MinutasApp(ctk.CTk):
             pass
 
     def update_model_dropdown(self):
-        models = self.config_mgr.config.get("available_models", ["gemini-2.0-flash", "gemini-1.5-flash"])
-        current = self.config_mgr.config.get("model_name", "gemini-2.0-flash")
+        models = self.config_mgr.config.get("available_models", ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash"])
+        current = self.config_mgr.config.get("model_name", "gemini-3.6-flash")
         if hasattr(self, "model_combo"):
             self.model_combo.configure(values=models)
             if current in models:
@@ -279,7 +279,7 @@ class MinutasApp(ctk.CTk):
             text_color=C_TEXT_WHITE
         ).grid(row=0, column=2, padx=(8, 8), pady=12)
 
-        models_list = self.config_mgr.config.get("available_models", ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"])
+        models_list = self.config_mgr.config.get("available_models", ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash"])
         self.model_combo = ctk.CTkComboBox(
             top_bar, 
             values=models_list,
@@ -292,7 +292,7 @@ class MinutasApp(ctk.CTk):
             dropdown_fg_color=C_CARD,
             font=ctk.CTkFont(family="Segoe UI", size=12)
         )
-        self.model_combo.set(self.config_mgr.config.get("model_name", "gemini-2.0-flash"))
+        self.model_combo.set(self.config_mgr.config.get("model_name", "gemini-3.6-flash"))
         self.model_combo.grid(row=0, column=3, padx=(0, 8), pady=12, sticky="ew")
 
         self.btn_refresh_models = ctk.CTkButton(

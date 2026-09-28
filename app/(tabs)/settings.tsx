@@ -28,7 +28,7 @@ import { COLORS } from '../../src/theme/colors';
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
   const [models, setModels] = useState<GeminiModelInfo[]>([]);
-  const [selectedDefaultModel, setSelectedDefaultModel] = useState('gemini-3.8-flash');
+  const [selectedDefaultModel, setSelectedDefaultModel] = useState('gemini-3.6-flash');
   const [healthMap, setHealthMap] = useState<Record<string, ModelHealthStatus>>({});
   
   const [templateName, setTemplateName] = useState<string | null>(null);

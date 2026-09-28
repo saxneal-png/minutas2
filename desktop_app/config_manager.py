@@ -156,7 +156,7 @@ class ConfigManager:
     def get_default_config(self) -> Dict[str, Any]:
         return {
             "api_key": "",
-            "model_name": "gemini-2.0-flash",
+            "model_name": "gemini-3.6-flash",
             "temperature": 0.1,
             "theme": "Dark",
             "active_profile": "DOH Embalse Zapallar",
@@ -164,12 +164,19 @@ class ConfigManager:
             "custom_template_path": "",
             "output_directory": os.path.join(os.path.expanduser("~"), "Documents", "Minutas_Generadas"),
             "available_models": [
-                "gemini-2.0-flash",
-                "gemini-1.5-flash",
-                "gemini-1.5-pro",
-                "gemini-2.5-flash"
+                "gemini-3.6-flash",
+                "gemini-3.8-flash",
+                "gemini-3.7-flash",
+                "gemini-3.5-flash",
+                "gemini-flash-latest"
             ]
         }
+
+    def sanitize_model(self, model: str) -> str:
+        deprecated = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+        if not model or any(d in model for d in ["2.5", "2.0", "1.5"]):
+            return "gemini-3.6-flash"
+        return model
 
     def load_config(self) -> Dict[str, Any]:
         if os.path.exists(self.config_path):
@@ -179,9 +186,18 @@ class ConfigManager:
                     config = self.get_default_config()
                     config.update(saved)
                     
-                    # Ensure valid model name
-                    if config.get("model_name") not in config.get("available_models", []):
-                        config["model_name"] = "gemini-2.0-flash"
+                    # Sanear modelos deprecados de la lista y del modelo seleccionado
+                    clean_models = [
+                        m for m in config.get("available_models", [])
+                        if not any(d in m for d in ["2.5", "2.0", "1.5"])
+                    ]
+                    if not clean_models or "gemini-3.6-flash" not in clean_models:
+                        clean_models = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash"]
+                    config["available_models"] = clean_models
+                    
+                    config["model_name"] = self.sanitize_model(config.get("model_name", ""))
+                    if config["model_name"] not in clean_models:
+                        config["model_name"] = clean_models[0]
 
                     for k, v in DEFAULT_PROFILES.items():
                         if k not in config.get("profiles", {}):

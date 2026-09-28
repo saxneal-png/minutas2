@@ -77,8 +77,17 @@ Responde ÚNICAMENTE con este formato JSON exacto:
   ]
 }`;
 
-// Modelos activos y recomendados según especificación oficial actualizada de Google AI Studio
+// Modelos activos y recomendados según especificación oficial verificada
 const FALLBACK_MODELS_DETAILED: GeminiModelInfo[] = [
+  {
+    id: 'gemini-3.6-flash',
+    displayName: 'Gemini 3.6 Flash',
+    description: 'Modelo de producción de alto rendimiento verificado y activo para generación de minutas.',
+    inputTokenLimit: 1048576,
+    outputTokenLimit: 8192,
+    category: 'latest',
+    isRecommended: true,
+  },
   {
     id: 'gemini-3.8-flash',
     displayName: 'Gemini 3.8 Flash',
@@ -89,51 +98,55 @@ const FALLBACK_MODELS_DETAILED: GeminiModelInfo[] = [
     isRecommended: true,
   },
   {
-    id: 'gemini-2.0-flash',
-    displayName: 'Gemini 2.0 Flash',
-    description: 'Modelo de producción ultrarrápido y robusto para minutas y extracción de datos.',
+    id: 'gemini-3.7-flash',
+    displayName: 'Gemini 3.7 Flash',
+    description: 'Generación avanzada con capacidades de razonamiento dinámico.',
     inputTokenLimit: 1048576,
     outputTokenLimit: 8192,
     category: 'latest',
-    isRecommended: true,
   },
   {
-    id: 'gemini-3.8-pro',
-    displayName: 'Gemini 3.8 Pro',
-    description: 'Máximo rendimiento cognitivo para razonamiento técnico institucional y análisis profundo.',
-    inputTokenLimit: 2097152,
-    outputTokenLimit: 8192,
-    category: 'pro',
-  },
-  {
-    id: 'gemini-1.5-flash',
-    displayName: 'Gemini 1.5 Flash',
-    description: 'Modelo estándar veloz con ventana de contexto de 1M tokens.',
+    id: 'gemini-3.5-flash',
+    displayName: 'Gemini 3.5 Flash',
+    description: 'Modelo balanceado y rápido para procesamiento textual.',
     inputTokenLimit: 1048576,
     outputTokenLimit: 8192,
     category: 'flash',
   },
   {
-    id: 'gemini-1.5-pro',
-    displayName: 'Gemini 1.5 Pro',
-    description: 'Análisis documental extenso con ventana de 2M tokens.',
-    inputTokenLimit: 2097152,
+    id: 'gemini-flash-latest',
+    displayName: 'Gemini Flash (Latest)',
+    description: 'Puntero dinámico a la versión más reciente del motor Flash.',
+    inputTokenLimit: 1048576,
     outputTokenLimit: 8192,
-    category: 'pro',
+    category: 'latest',
   },
 ];
 
-// Lista de modelos deprecados o descontinuados para excluirlos proactivamente
-const DEPRECATED_MODEL_IDS = ['gemini-2.5-flash', 'gemini-2.5-pro'];
+// Lista de modelos retirados o descontinuados que devuelven HTTP 404
+const DEPRECATED_MODEL_IDS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-exp',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+];
 
 /**
- * Normaliza y limpia IDs de modelos obsoletos hacia los nuevos estándares oficiales.
+ * Normaliza y limpia IDs de modelos obsoletos hacia los nuevos estándares oficiales verificados.
  */
 export const sanitizeModelId = (modelId?: string | null): string => {
-  if (!modelId) return 'gemini-3.8-flash';
+  if (!modelId) return 'gemini-3.6-flash';
   const clean = modelId.trim();
-  if (DEPRECATED_MODEL_IDS.includes(clean) || clean.includes('2.5')) {
-    return 'gemini-3.8-flash';
+  if (
+    DEPRECATED_MODEL_IDS.includes(clean) ||
+    clean.includes('2.5') ||
+    clean.includes('2.0') ||
+    clean.includes('1.5')
+  ) {
+    return 'gemini-3.6-flash';
   }
   return clean;
 };
@@ -201,7 +214,7 @@ export const fetchDetailedModels = async (apiKey: string): Promise<GeminiModelIn
     }
 
     // Si la API de Google no devuelve explícitamente los últimos alias aún, asegurar que los recomendados estén presentes
-    const ensureRecommended = ['gemini-3.8-flash', 'gemini-2.0-flash'];
+    const ensureRecommended = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-3.7-flash'];
     for (const recId of ensureRecommended) {
       if (!detailed.some((m) => m.id === recId)) {
         const fallbackObj = FALLBACK_MODELS_DETAILED.find((f) => f.id === recId);
@@ -209,20 +222,20 @@ export const fetchDetailedModels = async (apiKey: string): Promise<GeminiModelIn
       }
     }
 
-    // Ordenar con prioridad: 3.8 Flash, 2.0 Flash, 3.8 Pro, 1.5 Flash, 1.5 Pro, otros
+    // Ordenar con prioridad: 3.6 Flash (#1 probado OK), 3.8 Flash, 3.7 Flash, 3.5 Flash, Latest
     const rankModel = (item: GeminiModelInfo): number => {
       const id = item.id.toLowerCase();
-      if (id === 'gemini-3.8-flash') return 1;
-      if (id === 'gemini-2.0-flash') return 2;
-      if (id === 'gemini-3.8-pro') return 3;
-      if (id === 'gemini-2.0-flash-exp') return 4;
-      if (id === 'gemini-1.5-flash') return 5;
-      if (id === 'gemini-1.5-pro') return 6;
-      if (id.includes('3.8') || id.includes('3.')) return 8;
-      if (id.includes('2.0')) return 15;
-      if (id.includes('1.5')) return 20;
-      if (id.includes('exp')) return 30;
-      return 40;
+      if (id === 'gemini-3.6-flash') return 1;
+      if (id === 'gemini-3.8-flash') return 2;
+      if (id === 'gemini-3.7-flash') return 3;
+      if (id === 'gemini-3.5-flash') return 4;
+      if (id === 'gemini-flash-latest') return 5;
+      if (id.includes('3.6')) return 6;
+      if (id.includes('3.8')) return 7;
+      if (id.includes('3.7')) return 8;
+      if (id.includes('3.5')) return 9;
+      if (id.includes('3.')) return 10;
+      return 50;
     };
 
     detailed.sort((a, b) => rankModel(a) - rankModel(b));
@@ -498,12 +511,12 @@ export const analyzeCompiledSources = async (
   // Flota dinámica de fallback depurada y saneada
   const rawCandidates = [
     sanitizeModelId(modelName),
-    ...(discoveredFleet ? discoveredFleet.map(sanitizeModelId) : []),
+    'gemini-3.6-flash',
     'gemini-3.8-flash',
-    'gemini-2.0-flash',
-    'gemini-3.8-pro',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
+    'gemini-3.7-flash',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
+    ...(discoveredFleet ? discoveredFleet.map(sanitizeModelId) : []),
   ].filter(Boolean);
 
   const uniqueModels = Array.from(new Set(rawCandidates)).filter(
@@ -526,9 +539,11 @@ export const analyzeCompiledSources = async (
     } catch (err: any) {
       lastError = err;
       console.warn(`Fallo con modelo ${mod}:`, err.message);
-      // Continuar al siguiente si es error 404 (deprecado), 429 (cuota), 400 o timeout
+      // Continuar al siguiente si es error 404 (deprecado), 503 (alta demanda), 429 (cuota), 400 o timeout
       if (
         err.message?.includes('404') ||
+        err.message?.includes('503') ||
+        err.message?.includes('demand') ||
         err.message?.includes('no longer available') ||
         err.message?.includes('not found') ||
         err.message?.includes('429') ||

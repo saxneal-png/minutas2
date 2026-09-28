@@ -13,12 +13,17 @@ class GeminiEngine:
     Soporta análisis individual y compilación unificada de MÚLTIPLES archivos
     (Word, PDF, imágenes, audios y notas) en una sola minuta consolidada.
     """
-    def __init__(self, api_key: str = "", model_name: str = "gemini-2.0-flash", temperature: float = 0.1):
+    def __init__(self, api_key: str = "", model_name: str = "gemini-3.6-flash", temperature: float = 0.1):
         self.api_key = api_key.strip()
-        self.model_name = model_name or "gemini-2.0-flash"
+        self.model_name = self.sanitize_model_name(model_name)
         self.temperature = temperature
         self.timeout = 55 # Timeout generoso para compilaciones multi-archivo
         self.cached_models = []
+
+    def sanitize_model_name(self, name: str) -> str:
+        if not name or any(d in name for d in ["2.5", "2.0", "1.5"]):
+            return "gemini-3.6-flash"
+        return name
 
     def set_api_key(self, api_key: str):
         self.api_key = api_key.strip()
@@ -37,43 +42,47 @@ class GeminiEngine:
                 models_raw = data.get("models", [])
                 valid_models = []
 
+                # Lista negra de modelos retirados o no textuales
+                blacklisted = ["2.5", "2.0", "1.5", "vision", "embedding", "image", "tts", "audio", "robotics", "clip"]
+
                 for m in models_raw:
                     methods = m.get("supportedGenerationMethods", [])
                     if "generateContent" in methods:
                         name = m.get("name", "").replace("models/", "")
-                        if "gemini" in name.lower() and not "vision" in name.lower() and not "embedding" in name.lower():
+                        name_lower = name.lower()
+                        if "gemini" in name_lower and not any(b in name_lower for b in blacklisted):
                             valid_models.append(name)
 
                 priority_order = [
-                    "gemini-2.0-flash",
-                    "gemini-2.0-flash-exp",
-                    "gemini-1.5-flash",
-                    "gemini-1.5-pro",
-                    "gemini-2.5-flash",
-                    "gemini-3.7-flash"
+                    "gemini-3.6-flash",
+                    "gemini-3.8-flash",
+                    "gemini-3.7-flash",
+                    "gemini-3.5-flash",
+                    "gemini-flash-latest",
+                    "gemini-flash-lite-latest",
+                    "gemini-pro-latest"
                 ]
 
                 sorted_models = []
                 for p in priority_order:
-                    for vm in valid_models:
-                        if vm == p and vm not in sorted_models:
-                            sorted_models.append(vm)
+                    if p in valid_models and p not in sorted_models:
+                        sorted_models.append(p)
 
                 for vm in valid_models:
                     if vm not in sorted_models:
                         sorted_models.append(vm)
 
                 if not sorted_models:
-                    sorted_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+                    sorted_models = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash"]
 
                 self.cached_models = sorted_models
                 return True, sorted_models, f"Se detectaron {len(sorted_models)} modelos Gemini activos."
             else:
                 err_data = resp.json().get("error", {})
                 err_msg = err_data.get("message", resp.text)
-                return False, ["gemini-2.0-flash", "gemini-1.5-flash"], f"Error consultando modelos: {err_msg}"
+                return False, ["gemini-3.6-flash", "gemini-3.8-flash"], f"Error consultando modelos: {err_msg}"
         except Exception as e:
-            return False, ["gemini-2.0-flash", "gemini-1.5-flash"], f"Error de conexión: {str(e)}"
+            return False, ["gemini-3.6-flash", "gemini-3.8-flash"], f"Error de conexión: {str(e)}"
 
     def test_connection(self) -> Tuple[bool, str, List[str]]:
         if not self.api_key:
@@ -271,9 +280,17 @@ class GeminiEngine:
                 "text": "Analiza los archivos adjuntos compilados de la reunión y genera la minuta estructurada según las reglas del sistema."
             })
 
-        # 4. Enviar a Gemini con fallback inteligente
-        models_to_try = [self.model_name]
-        for m in (self.cached_models or ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
+        # 4. Enviar a Gemini con fallback inteligente depurado
+        primary_model = self.sanitize_model_name(self.model_name)
+        base_fallback = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-latest"]
+        
+        models_to_try = [primary_model]
+        for m in (self.cached_models or base_fallback):
+            clean_m = self.sanitize_model_name(m)
+            if clean_m not in models_to_try:
+                models_to_try.append(clean_m)
+        
+        for m in base_fallback:
             if m not in models_to_try:
                 models_to_try.append(m)
 
@@ -289,10 +306,12 @@ class GeminiEngine:
                     break
             except Exception as e:
                 last_error = e
-                if "404" in str(e) or "not found" in str(e).lower() or "unsupported" in str(e).lower():
+                err_str = str(e).lower()
+                # Si es 404 (deprecado), 503 (alta demanda temporal), 429 (cuota) o timeout, reintentar con el siguiente
+                if any(x in err_str for x in ["404", "503", "429", "not found", "unsupported", "no longer available", "high demand", "demand"]):
                     continue
                 else:
-                    raise e
+                    continue
 
         if not raw_output:
             raise last_error or Exception("No se pudo obtener respuesta de los modelos de Gemini.")

@@ -31,7 +31,7 @@ import { COLORS } from '../../src/theme/colors';
 export default function Analyze() {
   const [apiKey, setApiKey] = useState('');
   const [models, setModels] = useState<GeminiModelInfo[]>([]);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.6-flash');
   const [isSelectingModel, setIsSelectingModel] = useState(false);
   const [refreshingModels, setRefreshingModels] = useState(false);
 
