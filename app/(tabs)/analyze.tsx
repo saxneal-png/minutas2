@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { pickDocuments } from '../../src/services/document';
 import {
   analyzeCompiledSources,
-  fetchAvailableModels,
+  fetchDetailedModels,
+  GeminiModelInfo,
   SourceFile,
   MinutaData,
   MinutaFila,
@@ -28,9 +29,10 @@ import { COLORS } from '../../src/theme/colors';
 
 export default function Analyze() {
   const [apiKey, setApiKey] = useState('');
-  const [models, setModels] = useState<string[]>(['gemini-2.0-flash', 'gemini-1.5-flash']);
+  const [models, setModels] = useState<GeminiModelInfo[]>([]);
   const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
   const [isSelectingModel, setIsSelectingModel] = useState(false);
+  const [refreshingModels, setRefreshingModels] = useState(false);
 
   const [files, setFiles] = useState<SourceFile[]>([]);
   const [rawNotes, setRawNotes] = useState('');
@@ -46,16 +48,33 @@ export default function Analyze() {
   const loadSettings = async () => {
     try {
       const key = await AsyncStorage.getItem('gemini_api_key');
+      const savedModel = await AsyncStorage.getItem('selected_gemini_model');
+      const cachedModels = await AsyncStorage.getItem('cached_gemini_models');
+
+      if (key) setApiKey(key);
+
+      if (cachedModels) {
+        try {
+          const parsed = JSON.parse(cachedModels);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setModels(parsed);
+          }
+        } catch {
+          // ignore error
+        }
+      }
+
       if (key) {
-        setApiKey(key);
-        const discovered = await fetchAvailableModels(key);
+        const discovered = await fetchDetailedModels(key);
         if (discovered.length > 0) {
           setModels(discovered);
-          const savedModel = await AsyncStorage.getItem('selected_gemini_model');
-          if (savedModel && discovered.includes(savedModel)) {
+          await AsyncStorage.setItem('cached_gemini_models', JSON.stringify(discovered));
+          
+          if (savedModel && discovered.some((m) => m.id === savedModel)) {
             setSelectedModel(savedModel);
           } else {
-            setSelectedModel(discovered[0]);
+            const top = discovered.find((m) => m.isRecommended)?.id || discovered[0].id;
+            setSelectedModel(top);
           }
         }
       }
@@ -64,10 +83,34 @@ export default function Analyze() {
     }
   };
 
-  const handleSelectModel = async (model: string) => {
-    setSelectedModel(model);
+  const handleRefreshModels = async () => {
+    const activeKey = apiKey.trim() || (await AsyncStorage.getItem('gemini_api_key')) || '';
+    if (!activeKey) {
+      notifyError('Configura tu API Key en Ajustes para sincronizar los modelos.');
+      return;
+    }
+
+    setRefreshingModels(true);
+    try {
+      const discovered = await fetchDetailedModels(activeKey);
+      setModels(discovered);
+      await AsyncStorage.setItem('cached_gemini_models', JSON.stringify(discovered));
+      if (Platform.OS === 'web') {
+        window.alert(`¡Modelos sincronizados! ${discovered.length} modelos disponibles.`);
+      } else {
+        Alert.alert('Sincronización', `${discovered.length} modelos actualizados desde Google AI Studio.`);
+      }
+    } catch (e: any) {
+      notifyError(`Error al sincronizar: ${e.message}`);
+    } finally {
+      setRefreshingModels(false);
+    }
+  };
+
+  const handleSelectModel = async (modelId: string) => {
+    setSelectedModel(modelId);
     setIsSelectingModel(false);
-    await AsyncStorage.setItem('selected_gemini_model', model);
+    await AsyncStorage.setItem('selected_gemini_model', modelId);
   };
 
   const handleAddFiles = async () => {
@@ -114,13 +157,16 @@ export default function Analyze() {
       setLoading(true);
       setStatusMessage('Iniciando compilación inteligente...');
 
+      const fleetIds = models.map((m) => m.id);
+
       const result = await analyzeCompiledSources(
         activeKey,
         selectedModel,
         files,
         rawNotes,
         undefined,
-        (status) => setStatusMessage(status)
+        (status) => setStatusMessage(status),
+        fleetIds
       );
 
       setMinuta(result);
@@ -189,43 +235,92 @@ export default function Analyze() {
     setStatusMessage('');
   };
 
+  const currentModelInfo = models.find((m) => m.id === selectedModel);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Top Model Selector Bar (Steve Jobs Philosophy: single clean control) */}
+      {/* Top Model Selector Bar */}
       <View style={styles.topBar}>
         <View style={styles.brandRow}>
           <Ionicons name="sparkles" size={18} color={COLORS.secondary} />
           <Text style={styles.brandTitle}>Compilador de Minutas AI</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.modelPill}
-          onPress={() => setIsSelectingModel(!isSelectingModel)}
-        >
-          <Ionicons name="hardware-chip-outline" size={16} color={COLORS.secondaryLight} />
-          <Text style={styles.modelPillText}>{selectedModel}</Text>
-          <Ionicons name="chevron-down" size={14} color={COLORS.textSecondary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <TouchableOpacity
+            style={styles.refreshIconBtn}
+            onPress={handleRefreshModels}
+            disabled={refreshingModels}
+          >
+            {refreshingModels ? (
+              <ActivityIndicator size="small" color={COLORS.secondaryLight} />
+            ) : (
+              <Ionicons name="sync-outline" size={16} color={COLORS.secondaryLight} />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.modelPill}
+            onPress={() => setIsSelectingModel(!isSelectingModel)}
+          >
+            <Ionicons name="hardware-chip-outline" size={16} color={COLORS.secondaryLight} />
+            <Text style={styles.modelPillText}>
+              {currentModelInfo?.displayName || selectedModel}
+            </Text>
+            <Ionicons
+              name={isSelectingModel ? 'chevron-up' : 'chevron-down'}
+              size={14}
+              color={COLORS.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Model Selection Dropdown */}
       {isSelectingModel && (
         <Card style={styles.modelDropdown}>
-          <Text style={styles.modelDropdownHeader}>Selecciona el modelo Gemini a utilizar:</Text>
+          <View style={styles.dropdownHeaderRow}>
+            <Text style={styles.modelDropdownHeader}>Flota de Modelos Gemini Detectados:</Text>
+            <Text style={styles.modelsCountBadge}>{models.length} modelos</Text>
+          </View>
+
           {models.map((m) => (
             <TouchableOpacity
-              key={m}
-              style={[styles.modelOption, selectedModel === m && styles.modelOptionSelected]}
-              onPress={() => handleSelectModel(m)}
+              key={m.id}
+              style={[
+                styles.modelOption,
+                selectedModel === m.id && styles.modelOptionSelected,
+              ]}
+              onPress={() => handleSelectModel(m.id)}
             >
               <Ionicons
-                name={selectedModel === m ? 'radio-button-on' : 'radio-button-off'}
+                name={selectedModel === m.id ? 'radio-button-on' : 'radio-button-off'}
                 size={16}
-                color={selectedModel === m ? COLORS.secondary : COLORS.textSecondary}
+                color={selectedModel === m.id ? COLORS.secondary : COLORS.textSecondary}
               />
-              <Text style={[styles.modelOptionText, selectedModel === m && styles.modelOptionTextActive]}>
-                {m}
-              </Text>
+              <View style={{ flex: 1, marginLeft: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text
+                    style={[
+                      styles.modelOptionText,
+                      selectedModel === m.id && styles.modelOptionTextActive,
+                    ]}
+                  >
+                    {m.displayName}
+                  </Text>
+                  {m.isRecommended && (
+                    <View style={styles.miniRecBadge}>
+                      <Text style={styles.miniRecBadgeText}>Recomendado</Text>
+                    </View>
+                  )}
+                  <View style={styles.miniCatBadge}>
+                    <Text style={styles.miniCatBadgeText}>{m.category.toUpperCase()}</Text>
+                  </View>
+                </View>
+                <Text style={styles.modelOptionDesc} numberOfLines={1}>
+                  {m.id} • {m.description}
+                </Text>
+              </View>
             </TouchableOpacity>
           ))}
         </Card>
@@ -509,6 +604,16 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     letterSpacing: -0.3,
   },
+  refreshIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   modelPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -528,32 +633,76 @@ const styles = StyleSheet.create({
 
   modelDropdown: {
     marginBottom: 16,
-    padding: 16,
+    padding: 14,
+    gap: 8,
+  },
+  dropdownHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   modelDropdownHeader: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: COLORS.textSecondary,
-    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modelsCountBadge: {
+    fontSize: 11,
+    color: COLORS.secondaryLight,
+    fontWeight: '700',
   },
   modelOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    gap: 10,
   },
   modelOptionSelected: {
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: 'rgba(37, 99, 235, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.4)',
   },
   modelOptionText: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textSecondary,
+    fontWeight: '600',
   },
   modelOptionTextActive: {
     color: COLORS.white,
+    fontWeight: '800',
+  },
+  miniRecBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  miniRecBadgeText: {
+    color: COLORS.success,
+    fontSize: 9,
     fontWeight: '700',
+  },
+  miniCatBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  miniCatBadgeText: {
+    color: COLORS.secondaryLight,
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  modelOptionDesc: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
 
   card: {

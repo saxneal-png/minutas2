@@ -28,6 +28,25 @@ export interface SourceFile {
   size?: number;
 }
 
+export interface GeminiModelInfo {
+  id: string;
+  displayName: string;
+  description: string;
+  inputTokenLimit: number;
+  outputTokenLimit: number;
+  version?: string;
+  category: 'flash' | 'pro' | 'exp' | 'latest' | 'standard';
+  isRecommended?: boolean;
+}
+
+export interface ModelHealthStatus {
+  modelId: string;
+  status: 'online' | 'quota_exceeded' | 'error' | 'testing';
+  latencyMs?: number;
+  errorMessage?: string;
+  lastChecked: number;
+}
+
 export const DEFAULT_SYSTEM_PROMPT = `Eres el coordinador de una oficina de un servicio de apoyo experto y coordinación de actividades territoriales para el proceso constructivo del embalse zapallar canal matriz y obras anexas.
 
 REGLAS ESTRICTAS DE EXTRACCIÓN Y REDACCIÓN:
@@ -58,59 +77,223 @@ Responde ÚNICAMENTE con este formato JSON exacto:
   ]
 }`;
 
+const FALLBACK_MODELS_DETAILED: GeminiModelInfo[] = [
+  {
+    id: 'gemini-2.0-flash',
+    displayName: 'Gemini 2.0 Flash',
+    description: 'Modelo ultrarrápido de última generación con alto rendimiento multimodal.',
+    inputTokenLimit: 1048576,
+    outputTokenLimit: 8192,
+    category: 'latest',
+    isRecommended: true,
+  },
+  {
+    id: 'gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
+    description: 'Nueva generación optimizada para velocidad, eficiencia y síntesis profunda.',
+    inputTokenLimit: 1048576,
+    outputTokenLimit: 8192,
+    category: 'latest',
+    isRecommended: true,
+  },
+  {
+    id: 'gemini-1.5-flash',
+    displayName: 'Gemini 1.5 Flash',
+    description: 'Modelo veloz y altamente eficiente con ventana de 1M tokens.',
+    inputTokenLimit: 1048576,
+    outputTokenLimit: 8192,
+    category: 'flash',
+  },
+  {
+    id: 'gemini-1.5-pro',
+    displayName: 'Gemini 1.5 Pro',
+    description: 'Máxima capacidad de razonamiento técnico y análisis documental exhaustivo.',
+    inputTokenLimit: 2097152,
+    outputTokenLimit: 8192,
+    category: 'pro',
+  },
+];
+
 /**
- * Consulta en tiempo real los modelos Gemini disponibles y activos para la API Key dada.
+ * Consulta en tiempo real los modelos Gemini y sus metadatos detallados para la API Key dada.
  */
-export const fetchAvailableModels = async (apiKey: string): Promise<string[]> => {
-  if (!apiKey || !apiKey.trim()) return ['gemini-2.0-flash', 'gemini-1.5-flash'];
+export const fetchDetailedModels = async (apiKey: string): Promise<GeminiModelInfo[]> => {
+  if (!apiKey || !apiKey.trim()) return FALLBACK_MODELS_DETAILED;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`;
     const resp = await fetch(url);
     if (!resp.ok) {
-      return ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+      return FALLBACK_MODELS_DETAILED;
     }
 
     const data = await resp.json();
-    const modelsRaw = data.models || [];
-    const validModels: string[] = [];
+    const modelsRaw: any[] = data.models || [];
+    const detailed: GeminiModelInfo[] = [];
 
     for (const m of modelsRaw) {
       const methods: string[] = m.supportedGenerationMethods || [];
       if (methods.includes('generateContent')) {
-        const name: string = (m.name || '').replace('models/', '');
-        if (name.toLowerCase().includes('gemini') && !name.includes('vision') && !name.includes('embedding')) {
-          validModels.push(name);
+        const rawName: string = m.name || '';
+        const id: string = rawName.replace('models/', '');
+        const idLower = id.toLowerCase();
+
+        // Filtrar modelos no aptos para minutas/texto (embeddings, imagen generation, etc.)
+        if (
+          !idLower.includes('embedding') &&
+          !idLower.includes('imagen') &&
+          !idLower.includes('aqa') &&
+          !idLower.includes('learnlm')
+        ) {
+          let category: GeminiModelInfo['category'] = 'standard';
+          if (idLower.includes('2.5') || idLower.includes('2.0')) {
+            category = 'latest';
+          } else if (idLower.includes('exp') || idLower.includes('thinking')) {
+            category = 'exp';
+          } else if (idLower.includes('pro')) {
+            category = 'pro';
+          } else if (idLower.includes('flash')) {
+            category = 'flash';
+          }
+
+          const isRecommended =
+            id === 'gemini-2.0-flash' ||
+            id === 'gemini-2.5-flash' ||
+            id === 'gemini-1.5-flash';
+
+          detailed.push({
+            id,
+            displayName: m.displayName || id,
+            description: m.description || 'Modelo de Google Gemini para procesamiento inteligente.',
+            inputTokenLimit: m.inputTokenLimit || 1048576,
+            outputTokenLimit: m.outputTokenLimit || 8192,
+            version: m.version,
+            category,
+            isRecommended,
+          });
         }
       }
     }
 
-    const priorityOrder = [
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-exp',
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-2.5-flash',
-      'gemini-3.7-flash',
-    ];
+    // Ordenar con prioridad: Recomendados primero, luego 2.5/2.0, luego 1.5, luego experimentales
+    const rankModel = (item: GeminiModelInfo): number => {
+      const id = item.id.toLowerCase();
+      if (id === 'gemini-2.5-flash') return 1;
+      if (id === 'gemini-2.0-flash') return 2;
+      if (id === 'gemini-2.5-pro') return 3;
+      if (id === 'gemini-2.0-flash-exp') return 4;
+      if (id === 'gemini-1.5-flash') return 5;
+      if (id === 'gemini-1.5-pro') return 6;
+      if (id.includes('2.5')) return 10;
+      if (id.includes('2.0')) return 15;
+      if (id.includes('1.5')) return 20;
+      if (id.includes('exp')) return 30;
+      return 40;
+    };
 
-    const sorted: string[] = [];
-    for (const p of priorityOrder) {
-      if (validModels.includes(p) && !sorted.includes(p)) {
-        sorted.push(p);
-      }
-    }
-    for (const vm of validModels) {
-      if (!sorted.includes(vm)) {
-        sorted.push(vm);
-      }
-    }
+    detailed.sort((a, b) => rankModel(a) - rankModel(b));
 
-    return sorted.length > 0 ? sorted : ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    return detailed.length > 0 ? detailed : FALLBACK_MODELS_DETAILED;
   } catch (error) {
-    console.warn('Error descubriendo modelos Gemini:', error);
-    return ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    console.warn('Error descubriendo modelos detallados Gemini:', error);
+    return FALLBACK_MODELS_DETAILED;
   }
+};
+
+/**
+ * Consulta en tiempo real los nombres de modelos Gemini disponibles (compatibilidad hacia atrás).
+ */
+export const fetchAvailableModels = async (apiKey: string): Promise<string[]> => {
+  const list = await fetchDetailedModels(apiKey);
+  return list.map((m) => m.id);
+};
+
+/**
+ * Ejecuta un Health Check / Test de Latencia en un modelo específico.
+ */
+export const testModelHealth = async (
+  apiKey: string,
+  modelId: string
+): Promise<ModelHealthStatus> => {
+  const start = Date.now();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey.trim()}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'ping' }] }],
+        generationConfig: {
+          maxOutputTokens: 2,
+          temperature: 0.1,
+        },
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    const latencyMs = Date.now() - start;
+
+    if (response.status === 429) {
+      return {
+        modelId,
+        status: 'quota_exceeded',
+        latencyMs,
+        errorMessage: 'Límite de cuota excedido (HTTP 429 Rate Limit)',
+        lastChecked: Date.now(),
+      };
+    }
+
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      const msg = errJson.error?.message || response.statusText;
+      return {
+        modelId,
+        status: 'error',
+        latencyMs,
+        errorMessage: `[${response.status}] ${msg}`,
+        lastChecked: Date.now(),
+      };
+    }
+
+    return {
+      modelId,
+      status: 'online',
+      latencyMs,
+      lastChecked: Date.now(),
+    };
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    const latencyMs = Date.now() - start;
+    const isTimeout = error.name === 'AbortError';
+    return {
+      modelId,
+      status: 'error',
+      latencyMs,
+      errorMessage: isTimeout ? 'Tiempo de espera agotado (>12s)' : (error.message || 'Error de conexión'),
+      lastChecked: Date.now(),
+    };
+  }
+};
+
+/**
+ * Ejecuta un Health Check concurrente a toda una lista de modelos.
+ */
+export const testAllModelsHealth = async (
+  apiKey: string,
+  modelIds: string[]
+): Promise<Record<string, ModelHealthStatus>> => {
+  const results: Record<string, ModelHealthStatus> = {};
+  const promises = modelIds.map(async (id) => {
+    const status = await testModelHealth(apiKey, id);
+    results[id] = status;
+  });
+  await Promise.all(promises);
+  return results;
 };
 
 /**
@@ -138,7 +321,7 @@ const callGeminiRest = async (
   modelName: string,
   parts: any[],
   systemInstruction?: string,
-  timeoutMs = 50000
+  timeoutMs = 60000
 ): Promise<string> => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
 
@@ -203,7 +386,8 @@ export const analyzeCompiledSources = async (
   files: SourceFile[],
   rawNotes: string,
   systemPrompt = DEFAULT_SYSTEM_PROMPT,
-  onProgress?: (status: string) => void
+  onProgress?: (status: string) => void,
+  discoveredFleet?: string[]
 ): Promise<MinutaData> => {
   if (!apiKey || !apiKey.trim()) {
     throw new Error('Por favor ingresa tu API Key de Gemini en Ajustes.');
@@ -271,27 +455,41 @@ export const analyzeCompiledSources = async (
     });
   }
 
-  const candidateModels = [
-    modelName || 'gemini-2.0-flash',
+  // Flota dinámica de fallback
+  const baseCandidates = [
+    modelName,
+    ...(discoveredFleet || []),
     'gemini-2.0-flash',
+    'gemini-2.5-flash',
     'gemini-1.5-flash',
     'gemini-1.5-pro',
-    'gemini-2.5-flash',
-  ];
+  ].filter(Boolean);
 
-  const uniqueModels = Array.from(new Set(candidateModels));
+  const uniqueModels = Array.from(new Set(baseCandidates));
   let lastError: any = null;
   let rawJson = '';
 
-  for (const mod of uniqueModels) {
+  for (let i = 0; i < uniqueModels.length; i++) {
+    const mod = uniqueModels[i];
     try {
-      onProgress?.(`Analizando y redactando minuta con ${mod}...`);
+      if (i > 0) {
+        onProgress?.(`Reintentando con modelo de respaldo: ${mod}...`);
+      } else {
+        onProgress?.(`Compilando minuta con ${mod}...`);
+      }
       rawJson = await callGeminiRest(apiKey, mod, parts, systemPrompt);
       if (rawJson) break;
     } catch (err: any) {
       lastError = err;
       console.warn(`Fallo con modelo ${mod}:`, err.message);
-      if (err.message?.includes('404') || err.message?.includes('not found') || err.message?.includes('400')) {
+      // Continuar al siguiente si es error 429, 404, 400, o timeout
+      if (
+        err.message?.includes('429') ||
+        err.message?.includes('404') ||
+        err.message?.includes('not found') ||
+        err.message?.includes('400') ||
+        err.message?.includes('Timeout')
+      ) {
         continue;
       }
     }
