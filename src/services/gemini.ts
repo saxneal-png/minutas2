@@ -195,9 +195,9 @@ export const fetchDetailedModels = async (apiKey: string): Promise<GeminiModelIn
           }
 
           const isRecommended =
+            id === 'gemini-3.6-flash' ||
             id === 'gemini-3.8-flash' ||
-            id === 'gemini-2.0-flash' ||
-            id === 'gemini-1.5-flash';
+            id === 'gemini-3.7-flash';
 
           detailed.push({
             id,

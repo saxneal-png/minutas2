@@ -71,11 +71,20 @@ export default function Settings() {
       if (cachedModelsJson) {
         try {
           const parsed = JSON.parse(cachedModelsJson);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          const DEPRECATED_PATTERNS = ['2.5', '2.0', '1.5'];
+          const hasDeprecated =
+            Array.isArray(parsed) &&
+            parsed.some((m: any) =>
+              DEPRECATED_PATTERNS.some((p) => (m.id || '').includes(p))
+            );
+          if (hasDeprecated) {
+            // Cache corrupto con modelos deprecated: purgar para forzar re-descubrimiento
+            await AsyncStorage.removeItem('cached_gemini_models');
+          } else if (Array.isArray(parsed) && parsed.length > 0) {
             setModels(parsed);
           }
         } catch {
-          // ignore error
+          await AsyncStorage.removeItem('cached_gemini_models');
         }
       }
 

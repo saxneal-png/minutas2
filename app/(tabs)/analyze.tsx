@@ -54,14 +54,33 @@ export default function Analyze() {
 
       if (key) setApiKey(key);
 
+      // Limpiar cache potencialmente corrupto antes de usarlo
       if (cachedModels) {
         try {
           const parsed = JSON.parse(cachedModels);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          const DEPRECATED_PATTERNS = ['2.5', '2.0', '1.5'];
+          const hasDeprecated =
+            Array.isArray(parsed) &&
+            parsed.some((m: any) =>
+              DEPRECATED_PATTERNS.some((p) => (m.id || '').includes(p))
+            );
+          if (hasDeprecated) {
+            // Caché corrupto: eliminarlo para forzar re-descubrimiento limpio
+            await AsyncStorage.removeItem('cached_gemini_models');
+          } else if (Array.isArray(parsed) && parsed.length > 0) {
             setModels(parsed);
           }
         } catch {
-          // ignore error
+          await AsyncStorage.removeItem('cached_gemini_models');
+        }
+      }
+
+      // Sanear también el modelo guardado ANTES de hacer cualquier request
+      if (savedModel) {
+        const prevalidated = sanitizeModelId(savedModel);
+        if (prevalidated !== savedModel) {
+          setSelectedModel(prevalidated);
+          await AsyncStorage.setItem('selected_gemini_model', prevalidated);
         }
       }
 
