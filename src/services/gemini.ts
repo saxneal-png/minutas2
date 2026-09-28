@@ -77,29 +77,38 @@ Responde ÚNICAMENTE con este formato JSON exacto:
   ]
 }`;
 
+// Modelos activos y recomendados según especificación oficial actualizada de Google AI Studio
 const FALLBACK_MODELS_DETAILED: GeminiModelInfo[] = [
   {
-    id: 'gemini-2.0-flash',
-    displayName: 'Gemini 2.0 Flash',
-    description: 'Modelo ultrarrápido de última generación con alto rendimiento multimodal.',
+    id: 'gemini-3.8-flash',
+    displayName: 'Gemini 3.8 Flash',
+    description: 'Última generación de alta velocidad, síntesis multimodal y máxima eficiencia.',
     inputTokenLimit: 1048576,
     outputTokenLimit: 8192,
     category: 'latest',
     isRecommended: true,
   },
   {
-    id: 'gemini-2.5-flash',
-    displayName: 'Gemini 2.5 Flash',
-    description: 'Nueva generación optimizada para velocidad, eficiencia y síntesis profunda.',
+    id: 'gemini-2.0-flash',
+    displayName: 'Gemini 2.0 Flash',
+    description: 'Modelo de producción ultrarrápido y robusto para minutas y extracción de datos.',
     inputTokenLimit: 1048576,
     outputTokenLimit: 8192,
     category: 'latest',
     isRecommended: true,
+  },
+  {
+    id: 'gemini-3.8-pro',
+    displayName: 'Gemini 3.8 Pro',
+    description: 'Máximo rendimiento cognitivo para razonamiento técnico institucional y análisis profundo.',
+    inputTokenLimit: 2097152,
+    outputTokenLimit: 8192,
+    category: 'pro',
   },
   {
     id: 'gemini-1.5-flash',
     displayName: 'Gemini 1.5 Flash',
-    description: 'Modelo veloz y altamente eficiente con ventana de 1M tokens.',
+    description: 'Modelo estándar veloz con ventana de contexto de 1M tokens.',
     inputTokenLimit: 1048576,
     outputTokenLimit: 8192,
     category: 'flash',
@@ -107,12 +116,27 @@ const FALLBACK_MODELS_DETAILED: GeminiModelInfo[] = [
   {
     id: 'gemini-1.5-pro',
     displayName: 'Gemini 1.5 Pro',
-    description: 'Máxima capacidad de razonamiento técnico y análisis documental exhaustivo.',
+    description: 'Análisis documental extenso con ventana de 2M tokens.',
     inputTokenLimit: 2097152,
     outputTokenLimit: 8192,
     category: 'pro',
   },
 ];
+
+// Lista de modelos deprecados o descontinuados para excluirlos proactivamente
+const DEPRECATED_MODEL_IDS = ['gemini-2.5-flash', 'gemini-2.5-pro'];
+
+/**
+ * Normaliza y limpia IDs de modelos obsoletos hacia los nuevos estándares oficiales.
+ */
+export const sanitizeModelId = (modelId?: string | null): string => {
+  if (!modelId) return 'gemini-3.8-flash';
+  const clean = modelId.trim();
+  if (DEPRECATED_MODEL_IDS.includes(clean) || clean.includes('2.5')) {
+    return 'gemini-3.8-flash';
+  }
+  return clean;
+};
 
 /**
  * Consulta en tiempo real los modelos Gemini y sus metadatos detallados para la API Key dada.
@@ -138,15 +162,16 @@ export const fetchDetailedModels = async (apiKey: string): Promise<GeminiModelIn
         const id: string = rawName.replace('models/', '');
         const idLower = id.toLowerCase();
 
-        // Filtrar modelos no aptos para minutas/texto (embeddings, imagen generation, etc.)
+        // Filtrar modelos no aptos o deprecados
         if (
+          !DEPRECATED_MODEL_IDS.includes(id) &&
           !idLower.includes('embedding') &&
           !idLower.includes('imagen') &&
           !idLower.includes('aqa') &&
           !idLower.includes('learnlm')
         ) {
           let category: GeminiModelInfo['category'] = 'standard';
-          if (idLower.includes('2.5') || idLower.includes('2.0')) {
+          if (idLower.includes('3.8') || idLower.includes('3.') || idLower.includes('2.0')) {
             category = 'latest';
           } else if (idLower.includes('exp') || idLower.includes('thinking')) {
             category = 'exp';
@@ -157,8 +182,8 @@ export const fetchDetailedModels = async (apiKey: string): Promise<GeminiModelIn
           }
 
           const isRecommended =
+            id === 'gemini-3.8-flash' ||
             id === 'gemini-2.0-flash' ||
-            id === 'gemini-2.5-flash' ||
             id === 'gemini-1.5-flash';
 
           detailed.push({
@@ -175,16 +200,25 @@ export const fetchDetailedModels = async (apiKey: string): Promise<GeminiModelIn
       }
     }
 
-    // Ordenar con prioridad: Recomendados primero, luego 2.5/2.0, luego 1.5, luego experimentales
+    // Si la API de Google no devuelve explícitamente los últimos alias aún, asegurar que los recomendados estén presentes
+    const ensureRecommended = ['gemini-3.8-flash', 'gemini-2.0-flash'];
+    for (const recId of ensureRecommended) {
+      if (!detailed.some((m) => m.id === recId)) {
+        const fallbackObj = FALLBACK_MODELS_DETAILED.find((f) => f.id === recId);
+        if (fallbackObj) detailed.push(fallbackObj);
+      }
+    }
+
+    // Ordenar con prioridad: 3.8 Flash, 2.0 Flash, 3.8 Pro, 1.5 Flash, 1.5 Pro, otros
     const rankModel = (item: GeminiModelInfo): number => {
       const id = item.id.toLowerCase();
-      if (id === 'gemini-2.5-flash') return 1;
+      if (id === 'gemini-3.8-flash') return 1;
       if (id === 'gemini-2.0-flash') return 2;
-      if (id === 'gemini-2.5-pro') return 3;
+      if (id === 'gemini-3.8-pro') return 3;
       if (id === 'gemini-2.0-flash-exp') return 4;
       if (id === 'gemini-1.5-flash') return 5;
       if (id === 'gemini-1.5-pro') return 6;
-      if (id.includes('2.5')) return 10;
+      if (id.includes('3.8') || id.includes('3.')) return 8;
       if (id.includes('2.0')) return 15;
       if (id.includes('1.5')) return 20;
       if (id.includes('exp')) return 30;
@@ -215,8 +249,9 @@ export const testModelHealth = async (
   apiKey: string,
   modelId: string
 ): Promise<ModelHealthStatus> => {
+  const sanitizedId = sanitizeModelId(modelId);
   const start = Date.now();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey.trim()}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${sanitizedId}:generateContent?key=${apiKey.trim()}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -240,7 +275,7 @@ export const testModelHealth = async (
 
     if (response.status === 429) {
       return {
-        modelId,
+        modelId: sanitizedId,
         status: 'quota_exceeded',
         latencyMs,
         errorMessage: 'Límite de cuota excedido (HTTP 429 Rate Limit)',
@@ -251,17 +286,20 @@ export const testModelHealth = async (
     if (!response.ok) {
       const errJson = await response.json().catch(() => ({}));
       const msg = errJson.error?.message || response.statusText;
+      const isDeprecated = response.status === 404 || msg.includes('no longer available') || msg.includes('not found');
       return {
-        modelId,
+        modelId: sanitizedId,
         status: 'error',
         latencyMs,
-        errorMessage: `[${response.status}] ${msg}`,
+        errorMessage: isDeprecated
+          ? `Modelo retirado/no disponible (${msg.slice(0, 70)}...)`
+          : `[${response.status}] ${msg}`,
         lastChecked: Date.now(),
       };
     }
 
     return {
-      modelId,
+      modelId: sanitizedId,
       status: 'online',
       latencyMs,
       lastChecked: Date.now(),
@@ -271,7 +309,7 @@ export const testModelHealth = async (
     const latencyMs = Date.now() - start;
     const isTimeout = error.name === 'AbortError';
     return {
-      modelId,
+      modelId: sanitizedId,
       status: 'error',
       latencyMs,
       errorMessage: isTimeout ? 'Tiempo de espera agotado (>12s)' : (error.message || 'Error de conexión'),
@@ -287,8 +325,9 @@ export const testAllModelsHealth = async (
   apiKey: string,
   modelIds: string[]
 ): Promise<Record<string, ModelHealthStatus>> => {
+  const validIds = modelIds.map(sanitizeModelId).filter((id, i, arr) => arr.indexOf(id) === i);
   const results: Record<string, ModelHealthStatus> = {};
-  const promises = modelIds.map(async (id) => {
+  const promises = validIds.map(async (id) => {
     const status = await testModelHealth(apiKey, id);
     results[id] = status;
   });
@@ -323,7 +362,8 @@ const callGeminiRest = async (
   systemInstruction?: string,
   timeoutMs = 60000
 ): Promise<string> => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
+  const sanitizedModel = sanitizeModelId(modelName);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${sanitizedModel}:generateContent?key=${apiKey.trim()}`;
 
   const payload: any = {
     contents: [{ parts }],
@@ -455,17 +495,21 @@ export const analyzeCompiledSources = async (
     });
   }
 
-  // Flota dinámica de fallback
-  const baseCandidates = [
-    modelName,
-    ...(discoveredFleet || []),
+  // Flota dinámica de fallback depurada y saneada
+  const rawCandidates = [
+    sanitizeModelId(modelName),
+    ...(discoveredFleet ? discoveredFleet.map(sanitizeModelId) : []),
+    'gemini-3.8-flash',
     'gemini-2.0-flash',
-    'gemini-2.5-flash',
+    'gemini-3.8-pro',
     'gemini-1.5-flash',
     'gemini-1.5-pro',
   ].filter(Boolean);
 
-  const uniqueModels = Array.from(new Set(baseCandidates));
+  const uniqueModels = Array.from(new Set(rawCandidates)).filter(
+    (m) => !DEPRECATED_MODEL_IDS.includes(m)
+  );
+
   let lastError: any = null;
   let rawJson = '';
 
@@ -482,11 +526,12 @@ export const analyzeCompiledSources = async (
     } catch (err: any) {
       lastError = err;
       console.warn(`Fallo con modelo ${mod}:`, err.message);
-      // Continuar al siguiente si es error 429, 404, 400, o timeout
+      // Continuar al siguiente si es error 404 (deprecado), 429 (cuota), 400 o timeout
       if (
-        err.message?.includes('429') ||
         err.message?.includes('404') ||
+        err.message?.includes('no longer available') ||
         err.message?.includes('not found') ||
+        err.message?.includes('429') ||
         err.message?.includes('400') ||
         err.message?.includes('Timeout')
       ) {

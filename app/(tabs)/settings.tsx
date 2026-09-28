@@ -17,6 +17,7 @@ import {
   fetchDetailedModels,
   testModelHealth,
   testAllModelsHealth,
+  sanitizeModelId,
   GeminiModelInfo,
   ModelHealthStatus,
 } from '../../src/services/gemini';
@@ -27,7 +28,7 @@ import { COLORS } from '../../src/theme/colors';
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
   const [models, setModels] = useState<GeminiModelInfo[]>([]);
-  const [selectedDefaultModel, setSelectedDefaultModel] = useState('gemini-2.0-flash');
+  const [selectedDefaultModel, setSelectedDefaultModel] = useState('gemini-3.8-flash');
   const [healthMap, setHealthMap] = useState<Record<string, ModelHealthStatus>>({});
   
   const [templateName, setTemplateName] = useState<string | null>(null);
@@ -57,7 +58,13 @@ export default function Settings() {
       const tpl = await AsyncStorage.getItem('template_name');
 
       if (key) setApiKey(key);
-      if (savedModel) setSelectedDefaultModel(savedModel);
+      if (savedModel) {
+        const sanitized = sanitizeModelId(savedModel);
+        setSelectedDefaultModel(sanitized);
+        if (sanitized !== savedModel) {
+          await AsyncStorage.setItem('selected_gemini_model', sanitized);
+        }
+      }
       if (tpl) setTemplateName(tpl);
       if (lastScan) setLastScanTime(lastScan);
 

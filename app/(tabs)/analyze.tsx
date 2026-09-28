@@ -16,6 +16,7 @@ import { pickDocuments } from '../../src/services/document';
 import {
   analyzeCompiledSources,
   fetchDetailedModels,
+  sanitizeModelId,
   GeminiModelInfo,
   SourceFile,
   MinutaData,
@@ -30,7 +31,7 @@ import { COLORS } from '../../src/theme/colors';
 export default function Analyze() {
   const [apiKey, setApiKey] = useState('');
   const [models, setModels] = useState<GeminiModelInfo[]>([]);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
   const [isSelectingModel, setIsSelectingModel] = useState(false);
   const [refreshingModels, setRefreshingModels] = useState(false);
 
@@ -70,8 +71,12 @@ export default function Analyze() {
           setModels(discovered);
           await AsyncStorage.setItem('cached_gemini_models', JSON.stringify(discovered));
           
-          if (savedModel && discovered.some((m) => m.id === savedModel)) {
-            setSelectedModel(savedModel);
+          const sanitizedSaved = savedModel ? sanitizeModelId(savedModel) : null;
+          if (sanitizedSaved && discovered.some((m) => m.id === sanitizedSaved)) {
+            setSelectedModel(sanitizedSaved);
+            if (sanitizedSaved !== savedModel) {
+              await AsyncStorage.setItem('selected_gemini_model', sanitizedSaved);
+            }
           } else {
             const top = discovered.find((m) => m.isRecommended)?.id || discovered[0].id;
             setSelectedModel(top);
